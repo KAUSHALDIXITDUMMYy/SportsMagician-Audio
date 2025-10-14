@@ -51,10 +51,9 @@ export function RealTimeStreams() {
 
   const handleSelectStream = (stream: SubscriberPermission) => {
     console.log("[v0] Selecting stream:", stream.id)
-    // Toggle selection: clicking the same stream collapses the viewer
-    if (selectedStream?.id === stream.id) {
-      setSelectedStream(null)
-    } else {
+    // Auto-switch: clicking a different stream will auto-leave current and auto-join new
+    // Clicking the same stream does nothing (keeps it active)
+    if (selectedStream?.id !== stream.id) {
       setSelectedStream(stream)
     }
   }
@@ -109,7 +108,9 @@ export function RealTimeStreams() {
               </Badge>
             </div>
           </div>
-          <CardDescription>Your stream access is managed by administrators</CardDescription>
+          <CardDescription>
+            Click on any stream to instantly connect. Switch streams by clicking another one - we'll handle the rest!
+          </CardDescription>
         </CardHeader>
       </Card>
 

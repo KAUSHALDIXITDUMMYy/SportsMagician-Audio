@@ -5,12 +5,13 @@ import { UserManagement } from "@/components/admin/user-management"
 import { StreamPermissions } from "@/components/admin/stream-permissions"
 import { RealTimePermissions } from "@/components/admin/real-time-permissions"
 import { StreamManagement } from "@/components/admin/stream-management"
+import { SubscriberMonitoring } from "@/components/admin/subscriber-monitoring"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { signOut } from "@/lib/auth"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
-import { Settings, Users, Shield, LogOut, Activity, Video, UserCheck } from "lucide-react"
+import { Settings, Users, Shield, LogOut, Activity, Video, UserCheck, MonitorDot } from "lucide-react"
 import { SubscriberAssignments } from "@/components/admin/subscriber-assignments"
 
 export default function AdminDashboard() {
@@ -49,22 +50,26 @@ export default function AdminDashboard() {
         {/* Main Content */}
         <main className="container mx-auto px-4 py-8">
           <Tabs defaultValue="users" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="users" className="flex items-center space-x-2">
                 <Users className="h-4 w-4" />
-                <span>User Management</span>
+                <span>Users</span>
+              </TabsTrigger>
+              <TabsTrigger value="subscriber-monitor" className="flex items-center space-x-2">
+                <MonitorDot className="h-4 w-4" />
+                <span>IP Monitor</span>
               </TabsTrigger>
               <TabsTrigger value="assignments" className="flex items-center space-x-2">
                 <UserCheck className="h-4 w-4" />
-                <span>Subscriber Assignments</span>
+                <span>Assignments</span>
               </TabsTrigger>
               <TabsTrigger value="permissions" className="flex items-center space-x-2">
                 <Shield className="h-4 w-4" />
-                <span>Stream Permissions</span>
+                <span>Permissions</span>
               </TabsTrigger>
               <TabsTrigger value="streams" className="flex items-center space-x-2">
                 <Video className="h-4 w-4" />
-                <span>Stream Management</span>
+                <span>Streams</span>
               </TabsTrigger>
               <TabsTrigger value="monitor" className="flex items-center space-x-2">
                 <Activity className="h-4 w-4" />
@@ -74,6 +79,10 @@ export default function AdminDashboard() {
 
             <TabsContent value="users">
               <UserManagement />
+            </TabsContent>
+
+            <TabsContent value="subscriber-monitor">
+              <SubscriberMonitoring />
             </TabsContent>
 
             <TabsContent value="assignments">

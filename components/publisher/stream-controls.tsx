@@ -8,10 +8,11 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { Play, Square, Mic, MicOff, Volume2, VolumeX, Users, Clock } from "lucide-react"
+import { Play, Square, Mic, MicOff, Volume2, VolumeX, Users, Clock, Monitor, Smartphone } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { agoraManager } from "@/lib/agora"
 import { createStreamSession, endStreamSession, generateRoomId, type StreamSession } from "@/lib/streaming"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
 interface StreamControlsProps {
   onStreamStart?: (session: StreamSession) => void
@@ -35,6 +36,7 @@ export function StreamControls({ onStreamStart, onStreamEnd }: StreamControlsPro
   const [gameName, setGameName] = useState("")
   const [league, setLeague] = useState("")
   const [match, setMatch] = useState("")
+  const [streamType, setStreamType] = useState<"system_audio" | "microphone">("system_audio")
 
   const [jitsiContainer, setJitsiContainer] = useState<HTMLDivElement | null>(null)
 
@@ -66,25 +68,29 @@ export function StreamControls({ onStreamStart, onStreamEnd }: StreamControlsPro
         gameName: gameName || undefined,
         league: league || undefined,
         match: match || undefined,
+        streamType: streamType,
       })
 
       if (!sessionResult.success) {
         throw new Error(sessionResult.error)
       }
 
-      // Initialize Agora as publisher and auto-start screen share
-      if (jitsiContainer) {
+      // Initialize Agora as publisher
+      if (jitsiContainer || streamType === "microphone") {
         await agoraManager.join({
           channelName: roomId,
           role: "publisher",
-          container: jitsiContainer,
+          container: jitsiContainer || undefined,
           width: "100%",
           height: 500,
+          streamType: streamType,
         })
 
         setIsStreaming(true)
         setIsAudioSharing(true) // Auto-start audio sharing
-        setSuccess("Audio stream started successfully!")
+        setSuccess(streamType === "microphone" 
+          ? "Microphone stream started successfully!" 
+          : "Audio stream started successfully!")
         setCurrentSession(sessionResult.session!)
         onStreamStart?.(sessionResult.session!)
       }
@@ -113,6 +119,7 @@ export function StreamControls({ onStreamStart, onStreamEnd }: StreamControlsPro
       setGameName("")
       setLeague("")
       setMatch("")
+      setStreamType("system_audio")
       setSuccess("Stream ended successfully!")
       onStreamEnd?.()
     } catch (err: any) {
@@ -173,6 +180,32 @@ export function StreamControls({ onStreamStart, onStreamEnd }: StreamControlsPro
                 <AlertDescription>{success}</AlertDescription>
               </Alert>
             )}
+
+            <div className="space-y-2">
+              <Label>Stream Type</Label>
+              <RadioGroup value={streamType} onValueChange={(value) => setStreamType(value as "system_audio" | "microphone")}>
+                <div className="flex items-center space-x-2 space-y-0">
+                  <RadioGroupItem value="system_audio" id="system_audio" />
+                  <Label htmlFor="system_audio" className="flex items-center space-x-2 cursor-pointer">
+                    <Monitor className="h-4 w-4" />
+                    <div>
+                      <div className="font-medium">System Audio</div>
+                      <div className="text-xs text-muted-foreground">Share your system audio (Desktop only)</div>
+                    </div>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2 space-y-0">
+                  <RadioGroupItem value="microphone" id="microphone" />
+                  <Label htmlFor="microphone" className="flex items-center space-x-2 cursor-pointer">
+                    <Smartphone className="h-4 w-4" />
+                    <div>
+                      <div className="font-medium">Microphone Only</div>
+                      <div className="text-xs text-muted-foreground">Share audio from your microphone (Mobile & Desktop)</div>
+                    </div>
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="title">Stream Title</Label>
@@ -275,8 +308,17 @@ export function StreamControls({ onStreamStart, onStreamEnd }: StreamControlsPro
             {/* Audio-only mode indicators */}
             <div className="flex items-center space-x-4 p-3 bg-muted rounded-lg mb-4">
               <div className="flex items-center space-x-2">
-                <Volume2 className="h-4 w-4 text-green-600" />
-                <span className="text-sm">Audio Mode: System audio sharing</span>
+                {currentSession.streamType === "microphone" ? (
+                  <>
+                    <Mic className="h-4 w-4 text-green-600" />
+                    <span className="text-sm">Audio Mode: Microphone</span>
+                  </>
+                ) : (
+                  <>
+                    <Volume2 className="h-4 w-4 text-green-600" />
+                    <span className="text-sm">Audio Mode: System audio sharing</span>
+                  </>
+                )}
               </div>
               <div className="flex items-center space-x-2">
                 <VolumeX className="h-4 w-4 text-orange-600" />
@@ -285,19 +327,21 @@ export function StreamControls({ onStreamStart, onStreamEnd }: StreamControlsPro
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <Button variant={isAudioSharing ? "default" : "outline"} onClick={handleToggleAudioShare} size="sm">
-                {isAudioSharing ? (
-                  <>
-                    <VolumeX className="h-4 w-4 mr-2" />
-                    Stop Audio Share
-                  </>
-                ) : (
-                  <>
-                    <Volume2 className="h-4 w-4 mr-2" />
-                    Start Audio Share
-                  </>
-                )}
-              </Button>
+              {currentSession.streamType === "system_audio" && (
+                <Button variant={isAudioSharing ? "default" : "outline"} onClick={handleToggleAudioShare} size="sm">
+                  {isAudioSharing ? (
+                    <>
+                      <VolumeX className="h-4 w-4 mr-2" />
+                      Stop Audio Share
+                    </>
+                  ) : (
+                    <>
+                      <Volume2 className="h-4 w-4 mr-2" />
+                      Start Audio Share
+                    </>
+                  )}
+                </Button>
+              )}
 
               <Button variant={isAudioMuted ? "destructive" : "default"} onClick={handleToggleAudio} size="sm">
                 {isAudioMuted ? (
@@ -328,7 +372,9 @@ export function StreamControls({ onStreamStart, onStreamEnd }: StreamControlsPro
           <CardTitle>Stream View</CardTitle>
           <CardDescription>
             {isStreaming
-              ? "Your audio-only stream is active. Share system audio without showing your screen."
+              ? currentSession?.streamType === "microphone"
+                ? "Your microphone stream is active. Share audio from your microphone."
+                : "Your audio-only stream is active. Share system audio without showing your screen."
               : "Start a stream to begin sharing audio in audio-only mode."}
           </CardDescription>
         </CardHeader>
@@ -341,16 +387,24 @@ export function StreamControls({ onStreamStart, onStreamEnd }: StreamControlsPro
               <div className="text-center text-muted-foreground">
                 <Volume2 className="h-12 w-12 mx-auto mb-4" />
                 <p>Audio-only stream interface will appear here</p>
-                <p className="text-sm mt-2">No video will be shared, only system audio</p>
+                <p className="text-sm mt-2">No video will be shared, only audio</p>
               </div>
             )}
             {isStreaming && isAudioSharing && (
               <div className="text-center text-muted-foreground">
                 <div className="mb-4">
-                  <Volume2 className="h-16 w-16 mx-auto text-green-600" />
+                  {currentSession?.streamType === "microphone" ? (
+                    <Mic className="h-16 w-16 mx-auto text-green-600" />
+                  ) : (
+                    <Volume2 className="h-16 w-16 mx-auto text-green-600" />
+                  )}
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">Audio-Only Mode</h3>
-                <p className="text-sm text-muted-foreground mb-4">Sharing system audio</p>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {currentSession?.streamType === "microphone" 
+                    ? "Sharing microphone audio" 
+                    : "Sharing system audio"}
+                </p>
                 <div className="flex space-x-1 justify-center">
                   <div className="w-1 h-8 bg-green-500 rounded animate-pulse"></div>
                   <div className="w-1 h-6 bg-green-500 rounded animate-pulse" style={{animationDelay: '0.1s'}}></div>

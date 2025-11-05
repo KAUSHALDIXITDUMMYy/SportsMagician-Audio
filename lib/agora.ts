@@ -8,9 +8,10 @@ export interface AgoraJoinConfig {
   uid?: number
   appId?: string
   token?: string
-  container: HTMLElement
+  container?: HTMLElement // Optional for microphone-only streams
   width?: string | number
   height?: string | number
+  streamType?: "system_audio" | "microphone" // Stream type for publisher
 }
 
 export class AgoraManager {
@@ -39,7 +40,7 @@ export class AgoraManager {
   }
 
   async join(config: AgoraJoinConfig) {
-    const { channelName, role, uid } = config
+    const { channelName, role, uid, streamType } = config
 
     const tokenInfo = await this.fetchToken(channelName, role, uid)
     const appId = tokenInfo.appId
@@ -54,7 +55,14 @@ export class AgoraManager {
     await this.client.join(appId, channelName, token, agoraUid)
 
     if (role === "publisher") {
-      await this.startScreenShare(config.container)
+      if (streamType === "microphone") {
+        await this.startMicrophoneOnly()
+      } else {
+        if (!config.container) {
+          throw new Error("Container is required for system audio streams")
+        }
+        await this.startScreenShare(config.container)
+      }
     } else {
       // Audience: subscribe only to audio tracks (audio-only mode)
       this.client.on("user-published", async (user, mediaType) => {
@@ -77,18 +85,25 @@ export class AgoraManager {
       if (this.localAudio) {
         this.localAudio.stop()
         this.localAudio.close()
+        this.localAudio = null
       }
       if (this.localVideo) {
         this.localVideo.stop()
         this.localVideo.close()
+        this.localVideo = null
       }
       if (this.client) {
         if (this.screenTrack) {
           try {
             await this.client.unpublish([this.screenTrack] as any)
+            this.screenTrack.stop()
+            this.screenTrack.close()
           } catch {}
         }
-        await this.client.unpublish().catch(() => {})
+        // Unpublish all tracks including microphone audio
+        try {
+          await this.client.unpublish().catch(() => {})
+        } catch {}
         await this.client.leave()
       }
     } finally {
@@ -163,6 +178,21 @@ export class AgoraManager {
       this.screenTrack.close()
     } finally {
       this.screenTrack = null
+    }
+  }
+
+  async startMicrophoneOnly() {
+    if (!this.client) throw new Error("Client not joined")
+    if (this.localAudio) return // Already started
+
+    const AgoraRTC = await this.getAgora()
+    try {
+      // Create microphone audio track (mobile-friendly)
+      this.localAudio = await AgoraRTC.createMicrophoneAudioTrack()
+      await this.client.publish([this.localAudio] as any)
+    } catch (error) {
+      console.error("Failed to start microphone:", error)
+      throw error
     }
   }
 

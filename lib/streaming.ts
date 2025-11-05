@@ -14,6 +14,7 @@ export interface StreamSession {
   gameName?: string
   league?: string
   match?: string
+  streamType?: "system_audio" | "microphone" // New field: stream type
 }
 
 export const createStreamSession = async (session: Omit<StreamSession, "id" | "createdAt">) => {

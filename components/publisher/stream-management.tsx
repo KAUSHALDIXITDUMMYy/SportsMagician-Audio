@@ -20,7 +20,9 @@ import {
   Clock, 
   Users, 
   RefreshCw,
-  Power
+  Power,
+  Mic,
+  Monitor
 } from "lucide-react"
 
 export function PublisherStreamManagement() {
@@ -222,7 +224,24 @@ export function PublisherStreamManagement() {
                   <TableRow key={stream.id}>
                     <TableCell className="font-medium">
                       <div>
-                        <p className="font-medium">{stream.title || "Untitled Stream"}</p>
+                        <div className="flex items-center space-x-2">
+                          <p className="font-medium">{stream.title || "Untitled Stream"}</p>
+                          {stream.streamType && (
+                            <Badge variant="outline" className="text-xs">
+                              {stream.streamType === "microphone" ? (
+                                <>
+                                  <Mic className="h-3 w-3 mr-1" />
+                                  Mic
+                                </>
+                              ) : (
+                                <>
+                                  <Monitor className="h-3 w-3 mr-1" />
+                                  System
+                                </>
+                              )}
+                            </Badge>
+                          )}
+                        </div>
                         {stream.description && (
                           <p className="text-sm text-muted-foreground">{stream.description}</p>
                         )}
@@ -317,7 +336,24 @@ export function PublisherStreamManagement() {
                   <TableRow key={stream.id}>
                     <TableCell className="font-medium">
                       <div>
-                        <p className="font-medium">{stream.title || "Untitled Stream"}</p>
+                        <div className="flex items-center space-x-2">
+                          <p className="font-medium">{stream.title || "Untitled Stream"}</p>
+                          {stream.streamType && (
+                            <Badge variant="outline" className="text-xs">
+                              {stream.streamType === "microphone" ? (
+                                <>
+                                  <Mic className="h-3 w-3 mr-1" />
+                                  Mic
+                                </>
+                              ) : (
+                                <>
+                                  <Monitor className="h-3 w-3 mr-1" />
+                                  System
+                                </>
+                              )}
+                            </Badge>
+                          )}
+                        </div>
                         {stream.description && (
                           <p className="text-sm text-muted-foreground">{stream.description}</p>
                         )}

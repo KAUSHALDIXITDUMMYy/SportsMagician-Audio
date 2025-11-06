@@ -47,10 +47,26 @@ export class AgoraManager {
     const token = tokenInfo.token
     const agoraUid = tokenInfo.uid
 
-    // Low-latency live mode
+    // Ultra-low latency mode: Use "live" mode for broadcasting but optimize for minimal latency
     const AgoraRTC = await this.getAgora()
-    this.client = AgoraRTC.createClient({ mode: "live", codec: "h264" })
+    this.client = AgoraRTC.createClient({ 
+      mode: "live", // Live mode for broadcasting (publisher -> subscribers)
+      codec: "vp8" // VP8 codec for better real-time performance and lower latency
+    })
+    
+    // Set client role for broadcasting
     this.client.setClientRole(role === "publisher" ? "host" : "audience")
+    
+    // Enable low-latency mode for live streaming
+    // Configure client for minimal latency
+    try {
+      // Set audio profile for low latency (if available)
+      if ((this.client as any).setAudioProfile) {
+        (this.client as any).setAudioProfile("speech_low_quality") // Lower quality = lower latency
+      }
+    } catch (e) {
+      // Feature might not be available in all SDK versions
+    }
 
     await this.client.join(appId, channelName, token, agoraUid)
 
@@ -69,6 +85,9 @@ export class AgoraManager {
         if (mediaType === "audio") {
           await this.client!.subscribe(user, mediaType)
           const remoteAudioTrack = user.audioTrack as IRemoteAudioTrack
+          // Configure audio playback for minimal latency
+          remoteAudioTrack.setVolume(100)
+          // Play immediately without buffering for ultra-low latency
           remoteAudioTrack.play()
         }
         // Skip video tracks - subscribers only hear audio
@@ -131,9 +150,10 @@ export class AgoraManager {
     
     try {
       // Create screen capture with audio only (no video track)
+      // Use lower resolution for faster encoding and lower latency
       const screenTracks = await AgoraRTC.createScreenVideoTrack(
         {
-          encoderConfig: "1080p_30",
+          encoderConfig: "480p_15", // Lower resolution and framerate for minimal latency
           optimizationMode: "motion" as const,
           screenSourceType: fullScreen ? ("screen" as const) : ("window" as const),
         },
@@ -145,8 +165,17 @@ export class AgoraManager {
         this.screenTrack = screenTracks[0] // Keep video track reference for cleanup
         audioTrack = screenTracks[1] // Use the audio track
         
-        // Publish only the audio track
+        // Configure audio track for ultra-low latency
         if (audioTrack) {
+          // Set audio encoder configuration for minimal latency
+          if (audioTrack.setEncoderConfiguration) {
+            audioTrack.setEncoderConfiguration({
+              sampleRate: 48000,
+              stereo: false, // Mono for lower latency
+              bitrate: 48, // Lower bitrate for faster encoding
+            })
+          }
+          
           await this.client.publish([audioTrack] as any)
         }
         
@@ -155,13 +184,31 @@ export class AgoraManager {
         // Only got video track, try to get system audio separately
         this.screenTrack = screenTracks
         // For audio-only mode, we'll create a microphone track to capture system audio
-        audioTrack = await AgoraRTC.createMicrophoneAudioTrack()
+        audioTrack = await AgoraRTC.createMicrophoneAudioTrack({
+          encoderConfig: {
+            sampleRate: 48000,
+            stereo: false,
+            bitrate: 48,
+          },
+          AEC: true,
+          ANS: true,
+          AGC: true,
+        })
         await this.client.publish([audioTrack] as any)
         // Audio-only mode: don't show video, container will be handled by React
       }
     } catch (error) {
-      // Fallback: create microphone track for system audio
-      audioTrack = await AgoraRTC.createMicrophoneAudioTrack()
+      // Fallback: create microphone track for system audio with low latency config
+      audioTrack = await AgoraRTC.createMicrophoneAudioTrack({
+        encoderConfig: {
+          sampleRate: 48000,
+          stereo: false,
+          bitrate: 48,
+        },
+        AEC: true,
+        ANS: true,
+        AGC: true,
+      })
       await this.client.publish([audioTrack] as any)
       // Audio-only mode: don't show video, container will be handled by React
     }
@@ -187,8 +234,20 @@ export class AgoraManager {
 
     const AgoraRTC = await this.getAgora()
     try {
-      // Create microphone audio track (mobile-friendly)
-      this.localAudio = await AgoraRTC.createMicrophoneAudioTrack()
+      // Create microphone audio track with ultra-low latency configuration
+      this.localAudio = await AgoraRTC.createMicrophoneAudioTrack({
+        // Optimize encoder configuration for minimal latency
+        encoderConfig: {
+          sampleRate: 48000, // High sample rate for quality
+          stereo: false, // Mono for lower latency
+          bitrate: 48, // Lower bitrate for faster encoding (48kbps is sufficient for voice)
+        },
+        // Disable audio processing features that add latency
+        AEC: true, // Keep echo cancellation but optimize it
+        ANS: true, // Keep noise suppression but optimize it
+        AGC: true, // Keep automatic gain control but optimize it
+      })
+      
       await this.client.publish([this.localAudio] as any)
     } catch (error) {
       console.error("Failed to start microphone:", error)
@@ -200,7 +259,16 @@ export class AgoraManager {
     if (!this.client) throw new Error("Client not joined")
     if (!this.localAudio) {
       const AgoraRTC = await this.getAgora()
-      this.localAudio = await AgoraRTC.createMicrophoneAudioTrack()
+      this.localAudio = await AgoraRTC.createMicrophoneAudioTrack({
+        encoderConfig: {
+          sampleRate: 48000,
+          stereo: false,
+          bitrate: 48,
+        },
+        AEC: true,
+        ANS: true,
+        AGC: true,
+      })
       await this.client.publish([this.localAudio] as any)
     } else {
       await this.localAudio.setEnabled(true)

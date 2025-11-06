@@ -51,7 +51,7 @@ export class AgoraManager {
     const AgoraRTC = await this.getAgora()
     
     this.client = AgoraRTC.createClient({ 
-      mode: "rtc",
+      mode: "live",
       codec: "vp8"
     })
     
@@ -145,8 +145,8 @@ export class AgoraManager {
     try {
       const screenTracks = await AgoraRTC.createScreenVideoTrack(
         {
-          encoderConfig: "480p_10",
-          optimizationMode: "detail" as const,
+          encoderConfig: "480p_1",
+          optimizationMode: "motion" as const,
           screenSourceType: fullScreen ? ("screen" as const) : ("window" as const),
         },
         withSystemAudio ? "auto" : "disable"
@@ -202,9 +202,9 @@ export class AgoraManager {
   private async configureUltraLowLatencyAudio(audioTrack: ILocalAudioTrack) {
     if (audioTrack.setEncoderConfiguration) {
       audioTrack.setEncoderConfiguration({
-        sampleRate: 16000,
+        sampleRate: 8000,
         stereo: false,
-        bitrate: 16,
+        bitrate: 8,
       })
     }
     
@@ -216,13 +216,13 @@ export class AgoraManager {
   private async createUltraLowLatencyMicrophoneTrack(AgoraRTC: any): Promise<ILocalAudioTrack> {
     const track = await AgoraRTC.createMicrophoneAudioTrack({
       encoderConfig: {
-        sampleRate: 16000,
+        sampleRate: 8000,
         stereo: false,
-        bitrate: 16,
+        bitrate: 8,
       },
-      AEC: true,
-      ANS: true,
-      AGC: true,
+      AEC: false,
+      ANS: false,
+      AGC: false,
     })
     
     await this.configureUltraLowLatencyAudio(track)
@@ -250,16 +250,6 @@ export class AgoraManager {
       await this.localAudio.setEnabled(false)
       await this.client.unpublish([this.localAudio])
     } catch {}
-  }
-
-  async optimizeNetwork() {
-    if (!this.client) return
-    
-    this.client.on("network-quality", (quality) => {
-      if (quality.downlinkNetworkQuality > 1 || quality.uplinkNetworkQuality > 1) {
-        console.warn("Network quality degraded, consider reducing bitrate further")
-      }
-    })
   }
 }
 
